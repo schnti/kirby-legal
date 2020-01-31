@@ -40,7 +40,9 @@ Kirby::plugin('schnti/legal', [
 						'version' => option('schnti.legal.version'),
 					]);
 
-					$apiCache->set($resource, $response->content());
+					$apiData = $response->content();
+
+					$apiCache->set($resource, $apiData);
 
 				}
 
