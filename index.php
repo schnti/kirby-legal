@@ -40,7 +40,7 @@ Kirby::plugin('schnti/legal', [
 
 				if ($apiData === null) {
 
-					$response = Remote::post('$url/content/' . $resource, [
+					$response = Remote::post("$url/content/$resource", [
 						'headers' => [
 							'Authorization: Basic ' . base64_encode(option('schnti.legal.username') . ':' . option('schnti.legal.password'))
 						],
@@ -59,7 +59,7 @@ Kirby::plugin('schnti/legal', [
 		],
 	],
 	'hooks' => [
-		'page.render:after' => function (string $contentType, array $data, string $html, Page $page) {
+		'page.render:after' => function (string $contentType, array $data, string $html, Page $page) use ($url) {
 
 			if ($page->isHomePage()) {
 
@@ -69,7 +69,7 @@ Kirby::plugin('schnti/legal', [
 
 				if ($versionData !== $version) {
 					try {
-						Remote::post('$url/meta', [
+						Remote::post("$url/meta", [
 							'headers' => [
 								'Authorization: Basic ' . base64_encode(option('schnti.legal.username') . ':' . option('schnti.legal.password'))
 							],
