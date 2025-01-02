@@ -91,7 +91,7 @@ Kirby::plugin('schnti/legal', [
 						]);
 
 
-						$versionCache->set('version', $version);
+						$versionCache->set('version', $version, 10080); // 60 * 24 * 7 -> Tage
 					} catch (Exception $e) {
 					}
 				}
