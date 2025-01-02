@@ -46,7 +46,6 @@ Kirby::plugin('schnti/legal', [
 						],
 						'data'    => option('schnti.legal.data'),
 						'version' => option('schnti.legal.version'),
-						'kirbyversion' => kirby()->version()
 					]);
 
 					$apiData = $response->content();
@@ -61,7 +60,7 @@ Kirby::plugin('schnti/legal', [
 	'hooks' => [
 		'page.render:after' => function (string $contentType, array $data, string $html, Page $page) use ($url) {
 
-			if ($page->isHomePage()) {
+			if (!option('debug') && $page->isHomePage()) {
 
 				$versionCache = kirby()->cache('schnti.legal.meta');
 				$versionData = $versionCache->get('version');
