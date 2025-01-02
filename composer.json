@@ -1,6 +1,10 @@
 {
   "name": "schnti/legal",
-  "description": "kirby legal plugin",
+  "version": "1.0.0",
+  "type": "kirby-plugin",
+  "description": "legal plugin for personal usage",
+  "homepage": "https://github.com/schnti/kirby3-legal",
+  "license": "MIT",
   "authors": [
     {
       "name": "Timo Schneider",
@@ -8,8 +12,6 @@
       "homepage": "https://kleiner-als.de"
     }
   ],
-  "license": "MIT",
-  "type": "kirby-plugin",
   "keywords": [
     "kirby3",
     "kirby3-cms",
