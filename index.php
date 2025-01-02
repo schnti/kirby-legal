@@ -69,16 +69,28 @@ Kirby::plugin('schnti/legal', [
 
 				if ($versionData !== $version) {
 					try {
+
+						$license = Kirby\Cms\License::read();
+						$data = [
+							'kirbyversion' => $version,
+							'php' => phpversion(),
+							'license' => [
+								'activation' =>  $license->activation(),
+								'code' =>  $license->code(),
+								'domain' =>  $license->domain(),
+								'email' =>  $license->email(),
+								'order' =>  $license->order(),
+								'date' =>  $license->date()
+							],
+						];
+
 						Remote::post("$url/meta", [
 							'headers' => [
 								'Authorization: Basic ' . base64_encode(option('schnti.legal.username') . ':' . option('schnti.legal.password'))
 							],
-							'data' => [
-								'kirbyversion' => $version,
-								'php' => phpversion(),
-								'license' => kirby()->system()->license() // todo: not working
-							]
+							'data' => $data
 						]);
+
 
 						$versionCache->set('version', $version);
 					} catch (Exception $e) {
