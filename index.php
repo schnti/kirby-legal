@@ -5,6 +5,29 @@ use Kirby\Cms\Page;
 
 $url = 'https://legal-api.kleiner-als.de/rest';
 
+function getSectionData($url, $section, $force = false)
+{
+	$apiCache = kirby()->cache('schnti.legal.data');
+	$apiData = $apiCache->get($section);
+
+	if ($force === true || $apiData === null) {
+
+		$response = Remote::post("$url/content/$section", [
+			'headers' => [
+				'Authorization: Basic ' . base64_encode(option('schnti.legal.username') . ':' . option('schnti.legal.password'))
+			],
+			'data'    => option('schnti.legal.data'),
+			'version' => option('schnti.legal.version'),
+		]);
+
+		$apiData = $response->content();
+
+		$apiCache->set($section, $apiData);
+	}
+
+	return kirbytext($apiData);
+}
+
 Kirby::plugin('schnti/legal', [
 	'options' => [
 		'username'   => false,
@@ -31,29 +54,8 @@ Kirby::plugin('schnti/legal', [
 			'attr' => [
 				'class'
 			],
-			'html' => function ($tag) use ($url) {
-
-				$resource = $tag->value;
-
-				$apiCache = kirby()->cache('schnti.legal.data');
-				$apiData = $apiCache->get($resource);
-
-				if ($apiData === null) {
-
-					$response = Remote::post("$url/content/$resource", [
-						'headers' => [
-							'Authorization: Basic ' . base64_encode(option('schnti.legal.username') . ':' . option('schnti.legal.password'))
-						],
-						'data'    => option('schnti.legal.data'),
-						'version' => option('schnti.legal.version'),
-					]);
-
-					$apiData = $response->content();
-
-					$apiCache->set($resource, $apiData);
-				}
-
-				return kirbytext($apiData);
+			'html' => function ($tag) use ($url){
+				return getSectionData($url, $tag->value);
 			}
 		],
 	],
@@ -73,7 +75,7 @@ Kirby::plugin('schnti/legal', [
 							'kirbyversion' => $version,
 							'php' => phpversion(),
 						];
-						
+
 						if (class_exists('Kirby\Cms\License')) {
 							$license = Kirby\Cms\License::read();
 							$data['license'] = [
@@ -101,4 +103,18 @@ Kirby::plugin('schnti/legal', [
 			}
 		}
 	],
+	'api' => [
+		'routes' => [
+			[
+				'pattern' => 'legal-refresh',
+				'auth' => false,
+				'action'  => function () use ($url) {
+					getSectionData($url, 'datenschutz', true); // force = true
+					getSectionData($url, 'disclaimer', true); // force = true
+
+					return ' Done';
+				}
+			]
+		]
+	]
 ]);
