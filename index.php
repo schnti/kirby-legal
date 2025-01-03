@@ -69,19 +69,22 @@ Kirby::plugin('schnti/legal', [
 				if ($versionData !== $version) {
 					try {
 
-						$license = Kirby\Cms\License::read();
 						$data = [
 							'kirbyversion' => $version,
 							'php' => phpversion(),
-							'license' => [
+						];
+						
+						if (class_exists('Kirby\Cms\License')) {
+							$license = Kirby\Cms\License::read();
+							$data['license'] = [
 								'activation' =>  $license->activation(),
 								'code' =>  $license->code(),
 								'domain' =>  $license->domain(),
 								'email' =>  $license->email(),
 								'order' =>  $license->order(),
 								'date' =>  $license->date()
-							],
-						];
+							];
+						}
 
 						Remote::post("$url/meta", [
 							'headers' => [
