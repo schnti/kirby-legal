@@ -22,10 +22,50 @@ function getSectionData($url, $section, $force = false)
 
 		$apiData = $response->content();
 
-		$apiCache->set($section, $apiData);
+		$apiCache->set($section, $apiData); // Cache läuft nicht ab!
 	}
 
 	return kirbytext($apiData);
+}
+
+function sendMetaData($url, $force = false)
+{
+	$versionCache = kirby()->cache('schnti.legal.meta');
+	$versionData = $versionCache->get('version');
+	$version = kirby()->version();
+
+	if ($force === true || $versionData !== $version) {
+		try {
+
+			$data = [
+				'kirbyversion' => $version,
+				'php' => phpversion(),
+			];
+
+			if (class_exists('Kirby\Cms\License')) {
+				$license = Kirby\Cms\License::read();
+				$data['license'] = [
+					'activation' =>  $license->activation(),
+					'code' =>  $license->code(),
+					'domain' =>  $license->domain(),
+					'email' =>  $license->email(),
+					'order' =>  $license->order(),
+					'date' =>  $license->date()
+				];
+			}
+
+			Remote::post("$url/meta", [
+				'headers' => [
+					'Authorization: Basic ' . base64_encode(option('schnti.legal.username') . ':' . option('schnti.legal.password'))
+				],
+				'data' => $data
+			]);
+
+
+			$versionCache->set('version', $version, 60 * 24 * 30); // 60 Minuten * 24 Stunden * 30 Tage
+		} catch (Exception $e) {
+		}
+	}
 }
 
 Kirby::plugin('schnti/legal', [
@@ -54,7 +94,7 @@ Kirby::plugin('schnti/legal', [
 			'attr' => [
 				'class'
 			],
-			'html' => function ($tag) use ($url){
+			'html' => function ($tag) use ($url) {
 				return getSectionData($url, $tag->value);
 			}
 		],
@@ -63,43 +103,7 @@ Kirby::plugin('schnti/legal', [
 		'page.render:after' => function (string $contentType, array $data, string $html, Page $page) use ($url) {
 
 			if (!option('debug') && $page->isHomePage()) {
-
-				$versionCache = kirby()->cache('schnti.legal.meta');
-				$versionData = $versionCache->get('version');
-				$version = kirby()->version();
-
-				if ($versionData !== $version) {
-					try {
-
-						$data = [
-							'kirbyversion' => $version,
-							'php' => phpversion(),
-						];
-
-						if (class_exists('Kirby\Cms\License')) {
-							$license = Kirby\Cms\License::read();
-							$data['license'] = [
-								'activation' =>  $license->activation(),
-								'code' =>  $license->code(),
-								'domain' =>  $license->domain(),
-								'email' =>  $license->email(),
-								'order' =>  $license->order(),
-								'date' =>  $license->date()
-							];
-						}
-
-						Remote::post("$url/meta", [
-							'headers' => [
-								'Authorization: Basic ' . base64_encode(option('schnti.legal.username') . ':' . option('schnti.legal.password'))
-							],
-							'data' => $data
-						]);
-
-
-						$versionCache->set('version', $version, 10080); // 60 * 24 * 7 -> Tage
-					} catch (Exception $e) {
-					}
-				}
+				sendMetaData($url);
 			}
 		}
 	],
@@ -111,8 +115,15 @@ Kirby::plugin('schnti/legal', [
 				'action'  => function () use ($url) {
 					getSectionData($url, 'datenschutz', true); // force = true
 					getSectionData($url, 'disclaimer', true); // force = true
-
-					return ' Done';
+					return 'Legal Refresh Done';
+				}
+			],
+			[
+				'pattern' => 'meta-refresh',
+				'auth' => false,
+				'action'  => function () use ($url) {
+					sendMetaData($url, true); // force = true
+					return 'Meta Data Refresh Done';
 				}
 			]
 		]
