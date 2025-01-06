@@ -37,11 +37,15 @@ function sendMetaData($url, $force = false)
 	if ($force === true || $versionData !== $version) {
 		try {
 
+			$system = kirby()->system();
+
+			// versions
 			$data = [
-				'kirbyversion' => $version,
-				'php' => phpversion(),
+				'info' => $system->info(),
+				'status' => $system->status()
 			];
 
+			// License
 			if (class_exists('Kirby\Cms\License')) {
 				$license = Kirby\Cms\License::read();
 				$data['license'] = [
@@ -54,6 +58,12 @@ function sendMetaData($url, $force = false)
 				];
 			}
 
+			// Plugins
+			$plugins = $system->plugins();
+			foreach ($plugins as $plugin) {
+				$data['plugins'][] = $plugin->updateStatus()->toArray();
+			}
+
 			Remote::post("$url/meta", [
 				'headers' => [
 					'Authorization: Basic ' . base64_encode(option('schnti.legal.username') . ':' . option('schnti.legal.password'))
@@ -62,7 +72,7 @@ function sendMetaData($url, $force = false)
 			]);
 
 
-			$versionCache->set('version', $version, 60 * 24 * 30); // 60 Minuten * 24 Stunden * 30 Tage
+			$versionCache->set('version', $version, 60 * 24 * 7); // 60 Minuten * 24 Stunden * 7 Tage
 		} catch (Exception $e) {
 		}
 	}
