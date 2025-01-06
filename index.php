@@ -39,11 +39,17 @@ function sendMetaData($url, $force = false)
 
 			$system = kirby()->system();
 
-			// versions
-			$data = [
-				'info' => $system->info(),
-				'status' => $system->status()
-			];
+			// accounts, content, curl, sessions, mbstring, media, php
+			$data['status'] = $system->status();
+			
+			// Version, Server, PHP, License, Languages
+			// Since 4.3.0
+			if (method_exists($system, 'info')) {
+				$data['info'] = $system->info();
+			} else {
+				$data['info']['kirby'] = $version;
+				$data['info']['php'] = phpversion();
+			}
 
 			// License
 			if (class_exists('Kirby\Cms\License')) {
