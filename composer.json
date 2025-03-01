@@ -1,9 +1,9 @@
 {
   "name": "schnti/legal",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "type": "kirby-plugin",
   "description": "legal plugin for personal usage",
-  "homepage": "https://github.com/schnti/kirby3-legal",
+  "homepage": "https://github.com/schnti/kirby-legal",
   "license": "MIT",
   "authors": [
     {
@@ -13,9 +13,9 @@
     }
   ],
   "keywords": [
-    "kirby3",
-    "kirby3-cms",
-    "kirby3-plugin"
+    "kirby",
+    "kirby-cms",
+    "kirby-plugin"
   ],
   "require": {
     "getkirby/composer-installer": "^1.1"
