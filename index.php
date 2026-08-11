@@ -1,6 +1,7 @@
 <?php
 
 use Kirby\Cms\Page;
+use Kirby\Exception\InvalidArgumentException;
 use Kirby\Exception\PermissionException;
 use Kirby\Http\Remote;
 use Kirby\Toolkit\Str;
@@ -42,6 +43,48 @@ function legalParts(?Page $page = null): array
 	}
 
 	return (array)option('schnti.legal.data');
+}
+
+/**
+ * Welche Anbieter-Klauseln aus dem Kapitel „Hosting" wären nach diesem
+ * Speichern ausgewählt?
+ *
+ * Zusammengesetzt aus den neuen Werten und den Feldern, die das Formular nicht
+ * mitschickt — sonst würde ein Teilformular eine bestehende Auswahl übersehen.
+ * `auftragsverarbeitung` zählt nicht mit: die Klausel nennt keinen Anbieter,
+ * sondern gehört zu einem.
+ */
+function legalHostingAuswahl(Page $page, array $values): array
+{
+	$keys = array_unique([
+		...array_keys($page->content()->toArray()),
+		...array_keys($values)
+	]);
+
+	$anbieter = [];
+
+	foreach ($keys as $key) {
+		if (str_starts_with($key, 'klauseln') === false) {
+			continue;
+		}
+
+		$wert = array_key_exists($key, $values)
+			? $values[$key]
+			: $page->content()->get($key)->value();
+
+		if (is_array($wert) === true) {
+			$wert = implode(', ', $wert);
+		}
+
+		foreach (Str::split((string)$wert) as $uri) {
+			if (str_starts_with($uri, 'datenschutz/hosting/') === true
+				&& $uri !== 'datenschutz/hosting/auftragsverarbeitung') {
+				$anbieter[] = $uri;
+			}
+		}
+	}
+
+	return array_values(array_unique($anbieter));
 }
 
 /**
@@ -342,9 +385,24 @@ Kirby::plugin('schnti/legal', [
 			}
 		},
 
-		// Das ausgeblendete Feld ist nur Oberfläche — die Sperre gehört hierher,
-		// sonst umgeht ein direkter Panel-API-Aufruf sie.
 		'page.update:before' => function (Page $page, array $values) {
+
+			// Gültigkeitsprüfung — gilt für ALLE, auch für Admins: Die
+			// Hosting-Klauseln nennen je einen Anbieter. Zwei davon gleichzeitig
+			// ergeben eine Erklärung mit zwei Hostern, und das faellt beim
+			// Speichern niemandem auf. Checkboxen koennen das nicht verhindern,
+			// also muss es hier stehen.
+			$anbieter = legalHostingAuswahl($page, $values);
+
+			if (count($anbieter) > 1) {
+				throw new InvalidArgumentException(
+					'Es darf nur eine Hosting-Klausel ausgewählt sein, gewählt sind: '
+					. implode(', ', $anbieter)
+				);
+			}
+
+			// Berechtigungsprüfung — das ausgeblendete Feld ist nur Oberfläche,
+			// sonst umgeht ein direkter Panel-API-Aufruf die Sperre.
 			if (kirby()->user()?->isAdmin() === true) {
 				return;
 			}
