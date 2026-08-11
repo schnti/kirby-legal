@@ -26,23 +26,34 @@ function legalAuth(): string
  */
 function legalParts(?Page $page = null): array
 {
-	if ($page !== null) {
-		// Die Auswahl liegt auf mehrere Felder verteilt — eines je Kapitel,
-		// damit im Panel Zwischenüberschriften möglich sind.
-		$parts = [];
-
-		foreach ($page->content()->toArray() as $key => $value) {
-			if (str_starts_with($key, 'klauseln') === true && $value !== '') {
-				$parts = [...$parts, ...Str::split((string)$value)];
-			}
-		}
-
-		if ($parts !== []) {
-			return $parts;
-		}
+	if ($page !== null && ($parts = legalAuswahl($page)) !== []) {
+		return $parts;
 	}
 
 	return (array)option('schnti.legal.data');
+}
+
+/**
+ * Die im Panel gewählten Klauseln dieser Seite.
+ *
+ * Die Auswahl liegt auf mehrere Felder verteilt — eines je Kapitel, damit im
+ * Panel Zwischenüberschriften möglich sind. Sie heißen `klauseln_<kapitel>`;
+ * ein Feld namens `klauseln` gibt es nie. Wer darauf prüft, findet auf einer
+ * migrierten Seite nichts und hält sie für unmigriert.
+ *
+ * Leeres Ergebnis heißt: keine eigene Auswahl, es gilt die Konfiguration.
+ */
+function legalAuswahl(Page $page): array
+{
+	$parts = [];
+
+	foreach ($page->content()->toArray() as $key => $value) {
+		if (str_starts_with($key, 'klauseln') === true && $value !== '') {
+			$parts = [...$parts, ...Str::split((string)$value)];
+		}
+	}
+
+	return $parts;
 }
 
 /**
@@ -438,9 +449,12 @@ Kirby::plugin('schnti/legal', [
 
 					kirby()->cache('schnti.legal.structure')->flush();
 
-					// Seiten mit eigener Auswahl einzeln auffrischen …
+					// Seiten mit eigener Auswahl einzeln auffrischen. Der
+					// Cache-Schlüssel enthält die Auswahl — wer hier mit der
+					// Konfiguration auffrischt, wärmt einen Eintrag, den die
+					// migrierte Seite nie liest, und der Text bleibt stehen.
 					$pages = site()->index()->filter(
-						fn($p) => $p->klauseln()->isNotEmpty()
+						fn($p) => legalAuswahl($p) !== []
 					);
 
 					foreach ($pages as $page) {
