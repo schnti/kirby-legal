@@ -271,57 +271,71 @@ function getSectionData(string $url, string $section, ?Page $page = null, bool $
 	return kirbytext($cached['text'] ?? '', $daten);
 }
 
-function sendMetaData($url, $force = false)
+/**
+ * Meldet Kirby-Version, Systemstatus, Lizenz und Plugin-Stand an die Legal-API.
+ *
+ * Gibt zurück, was passiert ist. Der Rückgabewert ist die einzige Spur nach
+ * außen: der Hook läuft im Seitenaufbau, wo nichts sichtbar werden darf, und
+ * ohne ihn meldet die Route meta-refresh auch dann Erfolg, wenn nichts ankommt.
+ */
+function sendMetaData($url, $force = false): string
 {
 	$versionCache = kirby()->cache('schnti.legal.meta');
 	$versionData = $versionCache->get('version');
 	$version = kirby()->version();
 
-	if ($force === true || $versionData !== $version) {
-		try {
+	if ($force === false && $versionData === $version) {
+		return 'Meta unverändert, nichts gesendet';
+	}
 
-			$system = kirby()->system();
+	try {
+		$system = kirby()->system();
 
-			// accounts, content, curl, sessions, mbstring, media, php
-			$data['status'] = $system->status();
+		// accounts, content, curl, sessions, mbstring, media, php
+		$data['status'] = $system->status();
 
-			// Version, Server, PHP, License, Languages
-			// Since 4.3.0
-			if (method_exists($system, 'info')) {
-				$data['info'] = $system->info();
-			} else {
-				$data['info']['kirby'] = $version;
-				$data['info']['php'] = phpversion();
-			}
-
-			// License
-			if (class_exists('Kirby\Cms\License')) {
-				$license = Kirby\Cms\License::read();
-				$data['license'] = [
-					'activation' =>  $license->activation(),
-					'code' =>  $license->code(),
-					'domain' =>  $license->domain(),
-					'email' =>  $license->email(),
-					'order' =>  $license->order(),
-					'date' =>  $license->date()
-				];
-			}
-
-			// Plugins
-			$plugins = $system->plugins();
-			foreach ($plugins as $plugin) {
-				$data['plugins'][] = $plugin->updateStatus()->toArray();
-			}
-
-			Remote::post("$url/meta", [
-				'basicAuth' => legalAuth(),
-				'data'      => $data
-			]);
-
-
-			$versionCache->set('version', $version, 60 * 24 * 7); // 60 Minuten * 24 Stunden * 7 Tage
-		} catch (Exception $e) {
+		// Version, Server, PHP, License, Languages
+		// Since 4.3.0
+		if (method_exists($system, 'info')) {
+			$data['info'] = $system->info();
+		} else {
+			$data['info']['kirby'] = $version;
+			$data['info']['php'] = phpversion();
 		}
+
+		// License
+		if (class_exists('Kirby\Cms\License')) {
+			$license = Kirby\Cms\License::read();
+			$data['license'] = [
+				'activation' =>  $license->activation(),
+				'code' =>  $license->code(),
+				'domain' =>  $license->domain(),
+				'email' =>  $license->email(),
+				'order' =>  $license->order(),
+				'date' =>  $license->date()
+			];
+		}
+
+		// Plugins
+		$plugins = $system->plugins();
+		foreach ($plugins as $plugin) {
+			$data['plugins'][] = $plugin->updateStatus()->toArray();
+		}
+
+		$response = Remote::post("$url/meta", [
+			'basicAuth' => legalAuth(),
+			'data'      => $data
+		]);
+
+		if ($response->code() !== 200) {
+			return 'Meta abgelehnt, HTTP ' . $response->code();
+		}
+
+		$versionCache->set('version', $version, 60 * 24 * 7); // 60 Minuten * 24 Stunden * 7 Tage
+
+		return 'Meta gesendet';
+	} catch (Throwable $e) {
+		return 'Meta fehlgeschlagen: ' . $e->getMessage();
 	}
 }
 
@@ -571,8 +585,7 @@ Kirby::plugin('schnti/legal', [
 						return 'Meta Refresh übersprungen — vor weniger als einer Minute ausgeführt';
 					}
 
-					sendMetaData($url, true); // force = true
-					return 'Meta Data Refresh Done';
+					return sendMetaData($url, true); // force = true
 				}
 			]
 		]
