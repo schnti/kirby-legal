@@ -99,6 +99,26 @@ function legalHostingAuswahl(Page $page, array $values): array
 }
 
 /**
+ * Ein Feld der Seite als Kirbytext — oder ein Leerstring.
+ *
+ * Fehlt die Seite oder ist das Feld leer, wird nichts ausgegeben. Wichtig ist
+ * das Nichts: der Aufrufer hängt das Ergebnis in eine Seite, und ein `null`
+ * aus einem leeren Feld reicht bis in fremde kirbytags-Hooks durch.
+ */
+function legalFeldText(object $tag, string $feld): string
+{
+	$seite = $tag->parent();
+
+	if ($seite === null) {
+		return '';
+	}
+
+	$wert = $seite->content()->get($feld);
+
+	return $wert->isNotEmpty() === true ? $wert->kirbytext() : '';
+}
+
+/**
  * Drossel für die öffentlichen Refresh-Routen.
  *
  * Sie brauchen kein Auth, damit die Update-Links aus der Legal-API heraus
@@ -242,7 +262,13 @@ function getSectionData(string $url, string $section, ?Page $page = null, bool $
 		}
 	}
 
-	return kirbytext($cached['text'] ?? '');
+	// `parent` muss mit: die Klauseltexte enthalten Tags, die Felder DIESER
+	// Seite auflösen. Ohne die Angabe nimmt Kirby die gerade gerenderte Seite —
+	// beim Seitenaufruf zufällig die richtige, in einer API-Route wie
+	// legal-refresh aber keine, und der Tag liefert einen leeren Block.
+	$daten = $page !== null ? ['parent' => $page] : [];
+
+	return kirbytext($cached['text'] ?? '', $daten);
 }
 
 function sendMetaData($url, $force = false)
@@ -367,17 +393,15 @@ Kirby::plugin('schnti/legal', [
 		}
 	],
 	'tags'    => [
+		// Beide Tags geben nur aus, wenn das Feld gefüllt ist. Ein leeres
+		// Kirby-Feld hat den Wert null, und null durch kirbytext() zu schicken
+		// bringt jeden kirbytags-Hook zu Fall, der einen String erwartet — auf
+		// einer Kundenseite, deren Hooks dieses Plugin nicht kennt.
 		'verantwortlicheStelle' => [
-			'html' => function ($tag) {
-				$page = $tag->parent();
-				return $page->verantwortlicheStelle()->kirbytext();
-			}
+			'html' => fn($tag) => legalFeldText($tag, 'verantwortlicheStelle')
 		],
 		'datenschutzbeauftragter' => [
-			'html' => function ($tag) {
-				$page = $tag->parent();
-				return $page->datenschutzbeauftragter()->kirbytext();
-			}
+			'html' => fn($tag) => legalFeldText($tag, 'datenschutzbeauftragter')
 		],
 		'legal' => [
 			'attr' => [
