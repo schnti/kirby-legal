@@ -284,7 +284,12 @@ function sendMetaData($url, $force = false): string
 	$versionData = $versionCache->get('version');
 	$version = kirby()->version();
 
-	if ($force === false && $versionData === $version) {
+	// Auch die PHP-Version gehört in den Schlüssel: ein Image-Neubau bringt
+	// einen PHP-Sicherheitsfix, ohne dass sich an Kirby etwas ändert — und die
+	// Legal-API zeigt sonst bis zu einer Woche lang den alten Stand als offen.
+	$stand = $version . '|' . PHP_VERSION;
+
+	if ($force === false && $versionData === $stand) {
 		return 'Meta unverändert, nichts gesendet';
 	}
 
@@ -331,7 +336,7 @@ function sendMetaData($url, $force = false): string
 			return 'Meta abgelehnt, HTTP ' . $response->code();
 		}
 
-		$versionCache->set('version', $version, 60 * 24 * 7); // 60 Minuten * 24 Stunden * 7 Tage
+		$versionCache->set('version', $stand, 60 * 24 * 7); // 60 Minuten * 24 Stunden * 7 Tage
 
 		return 'Meta gesendet';
 	} catch (Throwable $e) {
